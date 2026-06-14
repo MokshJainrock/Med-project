@@ -6,7 +6,7 @@ The front end is one `public/index.html`. There's a small backend function (`api
 
 ## Links
 
-- Live app: https://med-project-ky48t1fwu-moksh-jain-s-projects1.vercel.app
+- Live app: https://med-project-plum.vercel.app/
 - Repo: https://github.com/MokshJainrock/Med-project
 
 ## How to use it
