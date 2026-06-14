@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Facility Assessment Snapshot — Infinite, Managed by Medelite</title>
+
+<!-- Export libraries, loaded from CDN. If a CDN is blocked the report still renders. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+<style>
+  :root {
+    --pink: #e6007e;
+    --purple: #6f2da8;
+    --ink: #1d1d1f;
+    --muted: #6b7280;
+    --line: #e3e5ea;
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --good: #1a7f48;
+    --warn: #b4690e;
+    --bad: #c0392b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.45;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 24px 20px 80px; }
+
+  /* ---- Brand banner (hardcoded, never overwritten) ---- */
+  .brandbar {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    padding: 18px; background: var(--card); border-radius: 14px;
+    border: 1px solid var(--line); margin-bottom: 18px;
+  }
+  .brandlogo { display:flex; align-items:center; gap:11px; }
+  .brand-mark {
+    width: 40px; height: 40px; border-radius: 11px;
+    background: conic-gradient(from 220deg, var(--pink), var(--purple), var(--pink));
+    display:flex; align-items:center; justify-content:center; color:#fff; flex:0 0 auto;
+  }
+  .brand-mark svg { width: 24px; height: 24px; }
+  .brand-text { line-height: 1.1; }
+  .brand-text .infinite {
+    font-weight: 800; font-size: 26px; letter-spacing: .5px;
+    background: linear-gradient(90deg, var(--pink), var(--purple));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .brand-text .managed { font-size: 12px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+  .brand-text .managed b { color: var(--purple); }
+
+  .layout { display: grid; grid-template-columns: 400px 1fr; gap: 22px; align-items: start; }
+  @media (max-width: 920px) { .layout { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px; margin-bottom: 18px;
+  }
+  .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 0 0 14px; }
+
+  label { display:block; font-size: 13px; font-weight: 600; margin: 12px 0 5px; }
+  .hint { font-weight: 400; color: var(--muted); font-size: 12px; }
+  input, select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px;
+    font-size: 14px; font-family: inherit; background: #fff; color: var(--ink);
+  }
+  input:focus, select:focus { outline: 2px solid rgba(111,45,168,.25); border-color: var(--purple); }
+
+  .ccn-row { display: flex; gap: 8px; }
+  .ccn-row input { flex: 1; }
+  button {
+    font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer;
+    border: none; border-radius: 9px; padding: 10px 16px; transition: filter .15s, opacity .15s;
+  }
+  button:disabled { opacity: .55; cursor: not-allowed; }
+  .btn-primary { background: linear-gradient(90deg, var(--pink), var(--purple)); color: #fff; }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
+  .btn-ghost { background: #f0eef6; color: var(--purple); }
+  .btn-ghost:hover:not(:disabled) { filter: brightness(.98); }
+
+  .export-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+  .export-row button { flex: 1; min-width: 150px; }
+
+  .status { font-size: 13px; margin-top: 10px; min-height: 18px; }
+  .status.err { color: var(--bad); }
+  .status.ok { color: var(--good); }
+  .status.load { color: var(--muted); }
+
+  /* ---- Report preview ---- */
+  #report { background: #fff; }
+  .rep-head { text-align: center; padding-bottom: 6px; border-bottom: 2px solid var(--line); margin-bottom: 4px; }
+  .rep-title { font-size: 18px; font-weight: 800; letter-spacing: .5px; margin: 14px 0 2px; }
+  .rep-state { font-size: 14px; font-weight: 700; color: var(--muted); letter-spacing: 3px; }
+
+  table.rep { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13.5px; }
+  table.rep td { padding: 9px 12px; border: 1px solid var(--line); vertical-align: top; }
+  table.rep td.k { width: 48%; font-weight: 600; background: #fafbfc; }
+  table.rep td.v { color: #222; }
+  .section-row td {
+    background: #f3eefa; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; font-size: 11.5px; color: var(--purple);
+  }
+  .stars { color: #e0a200; letter-spacing: 1px; }
+  .stars .empty { color: #d9d9d9; }
+  .delta-good { color: var(--good); font-weight: 600; }
+  .delta-bad { color: var(--bad); font-weight: 600; }
+  .src-link { display:inline-block; margin-top: 12px; font-size: 13px; color: var(--purple); word-break: break-all; }
+
+  .placeholder { text-align: center; color: var(--muted); padding: 60px 20px; }
+  .placeholder svg { width: 46px; height: 46px; opacity: .4; margin-bottom: 12px; }
+
+  /* cards/metrics */
+  .metric-grid { display:grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-top: 14px; }
+  @media (max-width:520px){ .metric-grid{ grid-template-columns:1fr; } }
+  .metric {
+    border:1px solid var(--line); border-radius:11px; padding:12px 14px; background:#fff;
+  }
+  .metric .lbl { font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
+  .metric .val { font-size:22px; font-weight:800; margin:2px 0; }
+  .metric .cmp { font-size:11.5px; color:var(--muted); }
+  .toggle-row { display:flex; align-items:center; gap:8px; margin-top:6px; font-size:13px; }
+  .toggle-row input { width:auto; }
+  footer.note { margin-top:26px; color:var(--muted); font-size:12px; text-align:center; }
+  .legal { font-size: 10.5px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== Hardcoded corporate banner ===== -->
+  <div class="brandbar">
+    <div class="brandlogo">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M6.5 7.5C3.9 7.5 2 9.5 2 12s1.9 4.5 4.5 4.5c2.2 0 3.6-1.6 5.5-4.5 1.9 2.9 3.3 4.5 5.5 4.5C20.1 16.5 22 14.5 22 12s-1.9-4.5-4.5-4.5c-2.2 0-3.6 1.6-5.5 4.5C10.1 9.1 8.7 7.5 6.5 7.5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      </span>
+      <span class="brand-text">
+        <div class="infinite">INFINITE</div>
+        <div class="managed">Managed by <b>MEDELITE</b></div>
+      </span>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- ============ LEFT: inputs ============ -->
+    <div>
+      <div class="card">
+        <h2>Facility Lookup</h2>
+        <label>CCN — CMS Certification Number
+          <span class="hint">6 characters. Pulls live data from the CMS Provider Data Catalog.</span>
+        </label>
+        <div class="ccn-row">
+          <input id="ccn" placeholder="e.g. 686123" maxlength="6" autocomplete="off" />
+          <button class="btn-primary" id="lookupBtn" onclick="lookup()">Fetch</button>
+        </div>
+        <div class="status" id="status"></div>
+
+        <label style="margin-top:16px">Facility Name Override
+          <span class="hint">Optional. Replaces the CMS legal name on the report only — not the INFINITE brand.</span>
+        </label>
+        <input id="nameOverride" placeholder="e.g. Kendall Lakes Healthcare and Rehab Center" oninput="renderReport()" />
+      </div>
+
+      <div class="card">
+        <h2>Manual Operational Inputs</h2>
+        <label>EMR <span class="hint">(e.g. PCC, MatrixCare)</span></label>
+        <input id="emr" placeholder="PCC" oninput="renderReport()" />
+
+        <label>Current Census <span class="hint">numeric</span></label>
+        <input id="census" type="number" min="0" placeholder="112" oninput="renderReport()" />
+
+        <label>Type of Patient</label>
+        <input id="ptype" placeholder="Long-term & Short-term" oninput="renderReport()" />
+
+        <label>Previous Coverage from Medelite</label>
+        <select id="prevCov" onchange="renderReport()">
+          <option value="">—</option>
+          <option>Yes</option>
+          <option>No</option>
+        </select>
+
+        <label>Previous Provider Performance from Medelite</label>
+        <input id="prevPerf" placeholder="About 30 patients/day" oninput="renderReport()" />
+
+        <label>Medical Coverage</label>
+        <input id="medcov" placeholder="Optometry, PCP, Podiatry" oninput="renderReport()" />
+      </div>
+
+      <div class="card">
+        <h2>Export</h2>
+        <div class="toggle-row">
+          <input type="checkbox" id="includeMetrics" checked onchange="renderReport()" />
+          <label for="includeMetrics" style="margin:0">Include 12 hospitalization / ED metrics</label>
+        </div>
+        <div class="export-row" style="margin-top:14px">
+          <button class="btn-primary" id="pdfBtn" onclick="downloadPDF()" disabled>Download PDF</button>
+          <button class="btn-ghost" id="docxBtn" onclick="downloadDOCX()" disabled>Download Word</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ RIGHT: live report preview ============ -->
+    <div class="card" id="reportCard">
+      <h2>Report Preview</h2>
+      <div id="report">
+        <div class="placeholder">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          <div>Enter a CCN and click <b>Fetch</b> to generate a snapshot.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="note">
+    Data source: CMS Provider Data Catalog (data.cms.gov) · Public domain · Not an endorsement by HHS/CMS.
+  </footer>
+</div>
+
+<script>
+/* =========================================================================
+   CMS Provider Data Catalog — datastore query API
+   Docs: https://data.cms.gov/provider-data/docs
+   Datastore query: /api/1/datastore/query/{datasetId}/0?conditions[...]
+   ========================================================================= */
+const PDC_BASE = "https://data.cms.gov/provider-data/api/1";
+const API_BASE = PDC_BASE + "/datastore/query";
+const SEARCH_BASE = PDC_BASE + "/search";
+
+/* Dataset IDs.
+   - providerInfo (4pq5-n9py) is verified and stable; it powers the whole MVP.
+   - claimsQM and stateAvg power the optional bonus metrics. CMS occasionally
+     re-issues these IDs at a refresh, so the app resolves them live at startup
+     (via the PDC fulltext search endpoint) and only falls back to these
+     last-known-good values if discovery fails. See README "Assumptions". */
+const DS = {
+  providerInfo: "4pq5-n9py",
+  claimsQM:     "ijh5-nb2v",   // fallback: Medicare Claims Quality Measures
+  stateAvg:     "xcdc-v8bb"    // fallback: State and US Averages
+};
+
+/* Look up the bonus dataset IDs by title. Falls back to the hardcoded IDs if this fails. */
+async function resolveDatasetIds() {
+  try {
+    const data = await fetchJSON(`${SEARCH_BASE}?fulltext=quality%20measures%20nursing&page-size=50`);
+    const items = Object.values(data.results || data.dataset || {});
+    const pick = (frag) => {
+      const hit = items.find(d => (d.title || "").toLowerCase().includes(frag));
+      if (!hit) return null;
+      const id = (hit.identifier || "").split("/").pop();
+      return /^[a-z0-9]{4}-[a-z0-9]{4}$/i.test(id) ? id : null;
+    };
+    const claims = pick("claims") || pick("medicare claims");
+    const stateA = pick("state and us averages") || pick("state averages") || pick("us averages");
+    if (claims) DS.claimsQM = claims;
+    if (stateA) DS.stateAvg = stateA;
+  } catch (_) { /* keep fallbacks */ }
+}
+
+let CURRENT = null; // holds the last successful fetch payload
+
+/* ---- 12-metric definitions (bonus). STR -> Short-Stay, LT -> Long-Stay. ----
+   Each maps a clean report label to the verbose CMS claims measure_description.
+   The CMS claims file gives one facility "score" per measure; state + national
+   comparison values come from the State/US Averages file.                    */
+const CLAIMS_METRICS = [
+  { label: "Short Term Hospitalization",  cms: "rehospitalized",            stay: "Short-Stay", pct: true,
+    natKey: "rehospitalized after a nursing home admission", suffix: "" },
+  { label: "STR ED Visit",                cms: "outpatient emergency",      stay: "Short-Stay", pct: true,
+    natKey: "outpatient emergency department visit", suffix: "" },
+  { label: "LT Hospitalization",          cms: "hospitalizations per 1000", stay: "Long-Stay",  pct: false,
+    natKey: "hospitalizations per 1000", suffix: "" },
+  { label: "ED Visit",                    cms: "emergency department visits per 1000", stay: "Long-Stay", pct: false,
+    natKey: "emergency department visits per 1000", suffix: "" }
+];
+
+/* ===================== Networking helpers ===================== */
+/* Build a query URL. The Vercel proxy forwards the whole CMS URL as one
+   encoded parameter, so CMS's conditions[...] exact-match syntax passes through
+   cleanly. An optional `cond` ({field, value}) filters to an exact match on the
+   server; `filterValue` is a full-text fallback. */
+function qURL(datasetId, opts = {}, limit = 50) {
+  const parts = [`limit=${limit}`];
+  if (opts.cond) {
+    parts.push(`conditions[0][property]=${encodeURIComponent(opts.cond.field)}`);
+    parts.push(`conditions[0][value]=${encodeURIComponent(opts.cond.value)}`);
+    parts.push(`conditions[0][operator]==`);
+  } else if (opts.filter) {
+    parts.push(`filter=${encodeURIComponent(opts.filter)}`);
+  }
+  return `${API_BASE}/${datasetId}/0?${parts.join("&")}`;
+}
+
+/* CMS doesn't send CORS headers for every origin, so a direct browser call can
+   get blocked on a hosted site. We try direct first, then fall back to public
+   CORS proxies. Whichever route works first gets remembered for the session. */
+/* ===== CMS request routing =====
+   This app is deployed on Vercel with a serverless proxy at /api/cms, which
+   fetches CMS server-side. Calling it is same-origin, so there is no CORS at
+   all and it works in every browser including Safari.
+
+   The public CORS proxies below are only a fallback for when the app is opened
+   as a plain file (file://) or on a host without the /api function. */
+const SAME_ORIGIN_PROXY = url => `/api/cms?url=${encodeURIComponent(url)}`;
+
+const PROXIES = [
+  SAME_ORIGIN_PROXY,
+  url => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  url => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`
+];
+let preferredRoute = null; // null = try direct first; otherwise an index into PROXIES
+
+async function fetchJSON(url) {
+  // Always go through the proxy list. PROXIES[0] is /api/cms (same-origin on
+  // Vercel) which never has CORS issues; the rest are public fallbacks.
+  const routes = PROXIES.map((p, i) => ({ kind: i, u: p(url) }));
+  if (preferredRoute !== null && preferredRoute >= 0) {
+    // move the known-good proxy to the front
+    routes.sort((a, b) => (a.kind === preferredRoute ? -1 : b.kind === preferredRoute ? 1 : 0));
+  }
+  let lastErr;
+  for (const r of routes) {
+    try {
+      const res = await fetch(r.u, { headers: { Accept: "application/json" } });
+      if (!res.ok) { lastErr = new Error(`HTTP ${res.status}`); continue; }
+      const data = await res.json();
+      preferredRoute = r.kind; // remember what worked
+      return data;
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error("All request routes failed");
+}
+
+/* Query a dataset. Tries an exact server-side condition on `matchField` first;
+   if that returns nothing, falls back to a full-text filter, then matches the
+   exact field client-side. This handles both precise and fuzzy CMS behavior. */
+async function apiQuery(datasetId, filterValue, matchField, matchValue, limit = 50) {
+  const want = matchValue != null ? String(matchValue).toLowerCase() : null;
+  const keep = rows => (matchField && want != null)
+    ? rows.filter(r => String(r[matchField] || "").toLowerCase() === want)
+    : rows;
+
+  // 1) Exact server-side condition (returns just the matching facility).
+  if (matchField && matchValue != null) {
+    try {
+      const j = await fetchJSON(qURL(datasetId, { cond: { field: matchField, value: matchValue } }, limit));
+      const rows = keep((j && j.results) ? j.results : []);
+      if (rows.length) return rows;
+    } catch (e) { /* fall through to full-text */ }
+  }
+
+  // 2) Full-text fallback, then match exactly client-side.
+  const j2 = await fetchJSON(qURL(datasetId, { filter: filterValue }, Math.max(limit, 200)));
+  return keep((j2 && j2.results) ? j2.results : []);
+}
+
+/* ===================== Lookup ===================== */
+async function lookup() {
+  const raw = document.getElementById("ccn").value.trim().toUpperCase();
+  const status = document.getElementById("status");
+  if (!raw) { setStatus("Please enter a CCN.", "err"); return; }
+
+  // CCNs are 6 characters. Pad short numeric ones with leading zeros.
+  let ccn = raw;
+  if (/^\d+$/.test(ccn) && ccn.length < 6) ccn = ccn.padStart(6, "0");
+  if (ccn.length !== 6) { setStatus("A CCN must be 6 characters.", "err"); return; }
+
+  setLoading(true);
+  setStatus("Querying CMS Provider Data Catalog…", "load");
+
+  try {
+    const rows = await apiQuery(DS.providerInfo,
+      ccn, "cms_certification_number_ccn", ccn, 200);
+
+    if (!rows.length) {
+      setStatus(`No facility found for CCN ${ccn}. Check the number and try again.`, "err");
+      setLoading(false);
+      return;
+    }
+    const p = rows[0];
+    CURRENT = { ccn, provider: p, metrics: null };
+    renderReport();
+    enableExports(true);
+    setStatus(`Loaded: ${p.provider_name}.`, "ok");
+
+    // Fetch the bonus metrics in the background so they never hold up the main report.
+    fetchMetrics(ccn, p.state).then(m => {
+      if (CURRENT && CURRENT.ccn === ccn) { CURRENT.metrics = m; renderReport(); }
+    }).catch(() => { /* metrics are optional, so ignore failures here */ });
+
+  } catch (e) {
+    setStatus(`Could not reach the CMS API (${e.message}). Check your connection and retry.`, "err");
+    enableExports(false);
+  } finally {
+    setLoading(false);
+  }
+}
+
+/* ---- Bonus: pull facility claims scores + state/national averages ---- */
+async function fetchMetrics(ccn, state) {
+  await dsReady; // ensure best-known dataset IDs are resolved
+  const out = {};
+  // Facility-level claims rows for this CCN
+  let facRows = [];
+  try { facRows = await apiQuery(DS.claimsQM, ccn, "cms_certification_number_ccn", ccn, 100); }
+  catch (e) { facRows = []; }
+
+  // State + national average rows
+  let stateRows = [], natRows = [];
+  try { stateRows = await apiQuery(DS.stateAvg, null, "state_or_nation", state, 100); } catch (e) {}
+  try { natRows  = await apiQuery(DS.stateAvg, null, "state_or_nation", "NATION", 100); } catch (e) {}
+
+  const num = v => { const n = parseFloat(v); return isFinite(n) ? n : null; };
+  const findFac = (frag, stay) => {
+    const r = facRows.find(x => {
+      const d = (x.measure_description || "").toLowerCase();
+      const t = (x.resident_type || "").toLowerCase();
+      return d.includes(frag.toLowerCase()) && (!stay || t.includes(stay.toLowerCase().split("-")[0]));
+    });
+    if (!r) return null;
+    return num(r.adjusted_score) ?? num(r.observed_score) ?? num(r.score);
+  };
+  // The averages rows are wide (one row, many columns). Match on a column-name fragment.
+  const findAvg = (rows, frag) => {
+    if (!rows.length) return null;
+    const row = rows[0];
+    const key = Object.keys(row).find(k => k.toLowerCase().includes(frag.toLowerCase().replace(/ /g, "_")) ||
+                                            k.toLowerCase().replace(/_/g, " ").includes(frag.toLowerCase()));
+    return key ? num(row[key]) : null;
+  };
+
+  CLAIMS_METRICS.forEach(m => {
+    out[m.label] = {
+      facility: findFac(m.cms, m.stay),
+      national: findAvg(natRows, m.natKey),
+      state:    findAvg(stateRows, m.natKey),
+      pct: m.pct
+    };
+  });
+  return out;
+}
+
+/* ===================== Rendering ===================== */
+function val(id) { return (document.getElementById(id).value || "").trim(); }
+
+function starHTML(n) {
+  const r = parseInt(n, 10);
+  if (!r || r < 1 || r > 5) return `<span class="stars empty">N/A</span>`;
+  let s = "";
+  for (let i = 1; i <= 5; i++) s += i <= r ? "★" : `<span class="empty">★</span>`;
+  return `<span class="stars">${s}</span> ${r}`;
+}
+
+function buildModel() {
+  if (!CURRENT) return null;
+  const p = CURRENT.provider;
+  const nameOverride = val("nameOverride");
+  const loc = p.location || [p.provider_address, p.citytown, p.state, p.zip_code].filter(Boolean).join(", ");
+  return {
+    ccn: CURRENT.ccn,
+    state: p.state || "",
+    name: nameOverride || p.provider_name || p.legal_business_name || "—",
+    location: loc || "—",
+    beds: p.number_of_certified_beds || "—",
+    emr: val("emr") || "—",
+    census: val("census") || "—",
+    ptype: val("ptype") || "—",
+    prevCov: val("prevCov") || "—",
+    prevPerf: val("prevPerf") || "—",
+    medcov: val("medcov") || "—",
+    overall: p.overall_rating, health: p.health_inspection_rating,
+    staffing: p.staffing_rating, quality: p.qm_rating,
+    metrics: CURRENT.metrics,
+    sourceURL: `https://www.medicare.gov/care-compare/details/nursing-home/${CURRENT.ccn}` +
+               (p.state ? `/view-all?state=${p.state}` : "")
+  };
+}
+
+function fmtMetricRaw(v, pct) { return pct ? `${(+v).toFixed(1)}%` : (+v).toFixed(2); }
+
+function renderReport() {
+  const host = document.getElementById("report");
+  const M = buildModel();
+  if (!M) return;
+  const includeMetrics = document.getElementById("includeMetrics").checked;
+
+  let rows = `
+    <tr class="section-row"><td colspan="2">Facility Overview</td></tr>
+    <tr><td class="k">Name of Facility</td><td class="v">${esc(M.name)}</td></tr>
+    <tr><td class="k">Location</td><td class="v">${esc(M.location)}</td></tr>
+    <tr><td class="k">EMR</td><td class="v">${esc(M.emr)}</td></tr>
+    <tr><td class="k">Census Capacity</td><td class="v">${esc(M.beds)}</td></tr>
+    <tr><td class="k">Current Census</td><td class="v">${esc(M.census)}</td></tr>
+    <tr><td class="k">Type of Patient</td><td class="v">${esc(M.ptype)}</td></tr>
+    <tr><td class="k">Previous Coverage from Medelite</td><td class="v">${esc(M.prevCov)}</td></tr>
+    <tr><td class="k">Previous Provider Performance from Medelite</td><td class="v">${esc(M.prevPerf)}</td></tr>
+    <tr><td class="k">Medical Coverage</td><td class="v">${esc(M.medcov)}</td></tr>
+    <tr class="section-row"><td colspan="2">CMS Five-Star Ratings</td></tr>
+    <tr><td class="k">Overall Star Rating</td><td class="v">${starHTML(M.overall)}</td></tr>
+    <tr><td class="k">Health Inspection</td><td class="v">${starHTML(M.health)}</td></tr>
+    <tr><td class="k">Staffing</td><td class="v">${starHTML(M.staffing)}</td></tr>
+    <tr><td class="k">Quality of Resident Care</td><td class="v">${starHTML(M.quality)}</td></tr>
+  `;
+
+  let metricCards = "";
+  if (includeMetrics) {
+    if (M.metrics) {
+      metricCards = `<div class="metric-grid">` + CLAIMS_METRICS.map(def => {
+        const d = M.metrics[def.label] || {};
+        const fac = d.facility!=null ? fmtMetricRaw(d.facility, def.pct) : "—";
+        const nat = d.national!=null ? fmtMetricRaw(d.national, def.pct) : "—";
+        const st  = d.state!=null ? fmtMetricRaw(d.state, def.pct) : "—";
+        return `<div class="metric">
+          <div class="lbl">${esc(def.label)} <span style="opacity:.6">(${def.stay})</span></div>
+          <div class="val">${fac}</div>
+          <div class="cmp">Nat'l avg ${nat} · State avg ${st}</div>
+        </div>`;
+      }).join("") + `</div>`;
+    } else {
+      metricCards = `<div class="status load" style="margin-top:12px">Loading claims-based metrics from CMS…</div>`;
+    }
+  }
+
+  host.innerHTML = `
+    <div class="rep-head">
+      <div style="display:flex;align-items:center;justify-content:center;gap:11px">
+        <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M6.5 7.5C3.9 7.5 2 9.5 2 12s1.9 4.5 4.5 4.5c2.2 0 3.6-1.6 5.5-4.5 1.9 2.9 3.3 4.5 5.5 4.5C20.1 16.5 22 14.5 22 12s-1.9-4.5-4.5-4.5c-2.2 0-3.6 1.6-5.5 4.5C10.1 9.1 8.7 7.5 6.5 7.5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>
+        <span class="brand-text"><span class="infinite" style="font-size:22px">INFINITE</span> <span class="managed">Managed by <b>MEDELITE</b></span></span>
+      </div>
+      <div class="rep-title">FACILITY ASSESSMENT SNAPSHOT</div>
+      <div class="rep-state">${esc(M.state || "—")}</div>
+    </div>
+    <table class="rep"><tbody>${rows}</tbody></table>
+    ${metricCards}
+    <a class="src-link" href="${M.sourceURL}" target="_blank" rel="noopener">
+      View official Medicare Care Compare profile →</a>
+    <div class="legal">Source: CMS Provider Data Catalog (data.cms.gov), public domain. This report is for internal
+    operational use and is not an endorsement by HHS or CMS of any provider.</div>
+  `;
+}
+
+function fmtMetricRaw(v, pct) { return pct ? `${(+v).toFixed(1)}%` : (+v).toFixed(2); }
+
+/* ===================== Export: PDF ===================== */
+function downloadPDF() {
+  const M = buildModel();
+  if (!M) return;
+  if (!window.jspdf) { setStatus("PDF library did not load (CDN blocked).", "err"); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 48;
+  let y = margin;
+
+  // Brand banner
+  doc.setFillColor(230, 0, 126);
+  doc.roundedRect(margin, y, 16, 16, 3, 3, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(111, 45, 168);
+  doc.text("INFINITE", margin + 24, y + 13);
+  const iw = doc.getTextWidth("INFINITE");
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(120);
+  doc.text("MANAGED BY MEDELITE", margin + 24 + iw + 10, y + 12);
+  y += 34;
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.setTextColor(29);
+  doc.text("FACILITY ASSESSMENT SNAPSHOT", pageW / 2, y, { align: "center" }); y += 18;
+  doc.setFontSize(12); doc.setTextColor(110);
+  doc.text(M.state || "—", pageW / 2, y, { align: "center" }); y += 12;
+
+  const stars = n => { const r = parseInt(n,10); return (r>=1&&r<=5) ? `__STARS__${r}` : "N/A"; };
+  const body = [
+    [{content:"FACILITY OVERVIEW", colSpan:2, styles:{fillColor:[243,238,250], textColor:[111,45,168], fontStyle:"bold"}}],
+    ["Name of Facility", M.name],
+    ["Location", M.location],
+    ["EMR", M.emr],
+    ["Census Capacity", String(M.beds)],
+    ["Current Census", String(M.census)],
+    ["Type of Patient", M.ptype],
+    ["Previous Coverage from Medelite", M.prevCov],
+    ["Previous Provider Performance from Medelite", M.prevPerf],
+    ["Medical Coverage", M.medcov],
+    [{content:"CMS FIVE-STAR RATINGS", colSpan:2, styles:{fillColor:[243,238,250], textColor:[111,45,168], fontStyle:"bold"}}],
+    ["Overall Star Rating", stars(M.overall)],
+    ["Health Inspection", stars(M.health)],
+    ["Staffing", stars(M.staffing)],
+    ["Quality of Resident Care", stars(M.quality)],
+  ];
+
+  if (document.getElementById("includeMetrics").checked && M.metrics) {
+    body.push([{content:"HOSPITALIZATION & ED METRICS", colSpan:2, styles:{fillColor:[243,238,250], textColor:[111,45,168], fontStyle:"bold"}}]);
+    CLAIMS_METRICS.forEach(def => {
+      const d = M.metrics[def.label] || {};
+      const fac = d.facility!=null ? fmtMetricRaw(d.facility, def.pct) : "—";
+      const nat = d.national!=null ? fmtMetricRaw(d.national, def.pct) : "—";
+      const st  = d.state!=null ? fmtMetricRaw(d.state, def.pct) : "—";
+      body.push([`${def.label} (${def.stay})`, `${fac}   ·   Nat'l ${nat}   ·   State ${st}`]);
+    });
+  }
+
+  // Draw the stars as shapes so they don't depend on a font (the built-in Helvetica
+  // has no star glyph). Cells marked "__STARS__N" get 5 drawn stars plus "N/5".
+  function drawStar(doc, cx, cy, rOuter, filled) {
+    const rInner = rOuter * 0.4; const pts = [];
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 === 0 ? rOuter : rInner;
+      const a = -Math.PI / 2 + i * Math.PI / 5;
+      pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+    }
+    const lines = pts.slice(1).map((p, i) => [p[0]-pts[i][0], p[1]-pts[i][1]]);
+    if (filled) { doc.setFillColor(224,162,0); doc.lines(lines, pts[0][0], pts[0][1], [1,1], "F", true); }
+    else { doc.setDrawColor(210,210,210); doc.setLineWidth(0.6); doc.lines(lines, pts[0][0], pts[0][1], [1,1], "S", true); }
+  }
+
+  doc.autoTable({
+    startY: y + 8, margin: { left: margin, right: margin },
+    head: [], body,
+    styles: { font: "helvetica", fontSize: 10, cellPadding: 6, lineColor: [227,229,234], lineWidth: 0.5 },
+    columnStyles: { 0: { cellWidth: 230, fontStyle: "bold", fillColor: [250,251,252] }, 1: { cellWidth: "auto" } },
+    theme: "grid",
+    didParseCell: d => {
+      if (typeof d.cell.raw === "string" && d.cell.raw.startsWith("__STARS__")) d.cell.text = [""];
+    },
+    didDrawCell: d => {
+      if (d.section !== "body") return;
+      const raw = d.cell.raw;
+      if (typeof raw === "string" && raw.startsWith("__STARS__")) {
+        const rating = parseInt(raw.replace("__STARS__", ""), 10);
+        const sz = 5, gap = 14;
+        const cy = d.cell.y + d.cell.height / 2;
+        let cx = d.cell.x + 6 + sz;
+        for (let i = 1; i <= 5; i++) { drawStar(doc, cx, cy, sz, i <= rating); cx += gap; }
+        doc.setTextColor(60); doc.setFontSize(10);
+        doc.text(`${rating} / 5`, cx + 2, cy + 3);
+      }
+    }
+  });
+
+  let ly = doc.lastAutoTable.finalY + 22;
+  doc.setFontSize(10); doc.setTextColor(111,45,168);
+  doc.textWithLink("View official Medicare Care Compare profile  >>", margin, ly, { url: M.sourceURL });
+  ly += 16;
+  doc.setFontSize(7.5); doc.setTextColor(140);
+  doc.text(M.sourceURL, margin, ly);
+  ly += 16;
+  doc.setFontSize(7.5); doc.setTextColor(150);
+  doc.text("Source: CMS Provider Data Catalog (data.cms.gov), public domain. Not an endorsement by HHS or CMS.", margin, ly);
+
+  const safe = M.name.replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "");
+  doc.save(`Facility_Assessment_${safe || M.ccn}.pdf`);
+  setStatus("PDF downloaded.", "ok");
+}
+
+/* ===================== Export: DOCX (bonus) ===================== */
+async function downloadDOCX() {
+  const M = buildModel();
+  if (!M) return;
+  if (!window.docx) { setStatus("Word library did not load (CDN blocked).", "err"); return; }
+  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType,
+          AlignmentType, BorderStyle, ShadingType, ExternalHyperlink, HeadingLevel } = window.docx;
+
+  const PINK = "E6007E", PURPLE = "6F2DA8", LINE = "E3E5EA", SHADE = "F3EEFA";
+  const stars = n => { const r = parseInt(n,10); return (r>=1&&r<=5) ? "★".repeat(r)+"☆".repeat(5-r)+"  "+r+"/5" : "N/A"; };
+  const border = { style: BorderStyle.SINGLE, size: 4, color: LINE };
+  const borders = { top:border, bottom:border, left:border, right:border };
+
+  function kv(k, v) {
+    return new TableRow({ children: [
+      new TableCell({ borders, width:{size:4680,type:WidthType.DXA},
+        shading:{ fill:"FAFBFC", type:ShadingType.CLEAR }, margins:{top:60,bottom:60,left:120,right:120},
+        children:[ new Paragraph({ children:[ new TextRun({ text:k, bold:true }) ] }) ] }),
+      new TableCell({ borders, width:{size:4680,type:WidthType.DXA},
+        margins:{top:60,bottom:60,left:120,right:120},
+        children:[ new Paragraph({ children:[ new TextRun(String(v)) ] }) ] }),
+    ]});
+  }
+  function section(title) {
+    return new TableRow({ children: [
+      new TableCell({ borders, columnSpan:2, width:{size:9360,type:WidthType.DXA},
+        shading:{ fill:SHADE, type:ShadingType.CLEAR }, margins:{top:60,bottom:60,left:120,right:120},
+        children:[ new Paragraph({ children:[ new TextRun({ text:title.toUpperCase(), bold:true, color:PURPLE }) ] }) ] }),
+    ]});
+  }
+
+  const rows = [
+    section("Facility Overview"),
+    kv("Name of Facility", M.name), kv("Location", M.location), kv("EMR", M.emr),
+    kv("Census Capacity", M.beds), kv("Current Census", M.census), kv("Type of Patient", M.ptype),
+    kv("Previous Coverage from Medelite", M.prevCov),
+    kv("Previous Provider Performance from Medelite", M.prevPerf),
+    kv("Medical Coverage", M.medcov),
+    section("CMS Five-Star Ratings"),
+    kv("Overall Star Rating", stars(M.overall)), kv("Health Inspection", stars(M.health)),
+    kv("Staffing", stars(M.staffing)), kv("Quality of Resident Care", stars(M.quality)),
+  ];
+  if (document.getElementById("includeMetrics").checked && M.metrics) {
+    rows.push(section("Hospitalization & ED Metrics"));
+    CLAIMS_METRICS.forEach(def => {
+      const d = M.metrics[def.label] || {};
+      const fac = d.facility!=null ? fmtMetricRaw(d.facility, def.pct) : "—";
+      const nat = d.national!=null ? fmtMetricRaw(d.national, def.pct) : "—";
+      const st  = d.state!=null ? fmtMetricRaw(d.state, def.pct) : "—";
+      rows.push(kv(`${def.label} (${def.stay})`, `${fac}   ·   Nat'l ${nat}   ·   State ${st}`));
+    });
+  }
+
+  const doc = new Document({
+    styles: { default: { document: { run: { font: "Arial", size: 22 } } } },
+    sections: [{
+      properties: { page: { size: { width:12240, height:15840 }, margin:{top:1080,right:1080,bottom:1080,left:1080} } },
+      children: [
+        new Paragraph({ alignment: AlignmentType.CENTER, children: [
+          new TextRun({ text:"INFINITE", bold:true, size:40, color:PURPLE }),
+          new TextRun({ text:"   Managed by MEDELITE", size:18, color:"888888" }),
+        ]}),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing:{before:120,after:40},
+          children:[ new TextRun({ text:"FACILITY ASSESSMENT SNAPSHOT", bold:true, size:30 }) ] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing:{after:160},
+          children:[ new TextRun({ text:M.state||"—", bold:true, size:24, color:"6B7280" }) ] }),
+        new Table({ width:{size:9360,type:WidthType.DXA}, columnWidths:[4680,4680], rows }),
+        new Paragraph({ spacing:{before:200}, children:[
+          new ExternalHyperlink({ link:M.sourceURL, children:[
+            new TextRun({ text:"View official Medicare Care Compare profile →", style:"Hyperlink", color:PURPLE, underline:{} }) ] }) ] }),
+        new Paragraph({ spacing:{before:80}, children:[ new TextRun({ text:M.sourceURL, size:14, color:"9AA0A6" }) ] }),
+        new Paragraph({ spacing:{before:120}, children:[ new TextRun({
+          text:"Source: CMS Provider Data Catalog (data.cms.gov), public domain. Not an endorsement by HHS or CMS.",
+          size:14, color:"9AA0A6" }) ] }),
+      ]
+    }]
+  });
+
+  const blob = await Packer.toBlob(doc);
+  const safe = M.name.replace(/[^\w]+/g, "_").replace(/^_+|_+$/g, "");
+  (window.saveAs || ((b,n)=>{const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=n;a.click();}))(blob, `Facility_Assessment_${safe || M.ccn}.docx`);
+  setStatus("Word document downloaded.", "ok");
+}
+
+/* ===================== UI helpers ===================== */
+function setStatus(msg, cls) { const el=document.getElementById("status"); el.textContent=msg; el.className="status "+(cls||""); }
+function setLoading(on) { document.getElementById("lookupBtn").disabled=on; document.getElementById("lookupBtn").textContent=on?"…":"Fetch"; }
+function enableExports(on) { document.getElementById("pdfBtn").disabled=!on; document.getElementById("docxBtn").disabled=!on; }
+function esc(s) { return String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+// Enter key triggers lookup
+document.getElementById("ccn").addEventListener("keydown", e => { if (e.key==="Enter") lookup(); });
+
+// Look up the bonus dataset IDs in the background. The MVP does not depend on this.
+const dsReady = resolveDatasetIds();
+</script>
+</body>
+</html>
