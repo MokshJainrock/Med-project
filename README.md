@@ -4,10 +4,13 @@ A tool I built for the Medelite case study. You type in a facility's CCN, it pul
 
 The front end is one `public/index.html`. There's a small backend function (`api/cms.js`) that fetches the CMS data so the browser doesn't run into CORS issues.
 
+I also added a companion **Risk Adjustment Coding-Accuracy Tool** (`public/risk-adjustment.html`) that measures ICD-10 coding accuracy against a gold set at both the code and HCC level. See [RISK-ADJUSTMENT-README.md](RISK-ADJUSTMENT-README.md) for full details.
+
 ## Links
 
 - Live app: https://med-project-plum.vercel.app/
 - Repo: https://github.com/MokshJainrock/Med-project
+- Risk adjustment tool: https://med-project-plum.vercel.app/risk-adjustment.html
 
 ## How to use it
 
@@ -35,6 +38,7 @@ Extra stuff I added:
 - Word download as well as PDF.
 - Cards for the 12 metrics.
 - Handles bad CCNs, no results, and errors instead of just breaking.
+- Risk adjustment coding-accuracy tool (precision, recall, F1 at ICD-10 and HCC level).
 
 ## Where each field comes from
 
@@ -56,7 +60,8 @@ STR uses the short-stay measures and LT uses the long-stay ones. The long CMS na
 
 ## How it's set up
 
-- `public/index.html` is the app.
+- `public/index.html` is the facility snapshot app.
+- `public/risk-adjustment.html` is the risk adjustment tool.
 - `api/cms.js` is a small function that fetches CMS on the server, so the browser call stays on the same domain and there's no CORS problem.
 - Deployed on Vercel. It serves the `public` folder and turns `api/cms.js` into a function automatically. No build step.
 
@@ -67,13 +72,14 @@ npm i -g vercel
 vercel dev
 ```
 
-Then open the localhost link it prints. The lookup needs the function, so use `vercel dev` rather than opening the file directly.
+Then open the localhost link it prints. The facility lookup needs the function, so use `vercel dev` rather than opening the file directly.
 
 ## A few notes
 
 - The main data comes from the CMS Provider Information dataset (4pq5-n9py), looked up by CCN.
 - The claims and averages dataset IDs are found at runtime, so they keep working if CMS changes them. Known IDs are kept as a backup.
 - PDF uses jsPDF, Word uses docx. The stars in the PDF are drawn as shapes because the default PDF font has no star character.
+- The risk adjustment tool uses synthetic sample data only — no real patients or PHI. See RISK-ADJUSTMENT-README.md.
 
 ## Test CCN
 
@@ -82,10 +88,14 @@ Use `686123` for Kendall Lakes in Miami, FL. Any other valid CCN works too.
 ## Files
 
 ```
-api/cms.js              backend function that fetches CMS
-public/index.html       the app
-public/samples/         example PDF and Word doc
-vercel.json             vercel config
+api/cms.js                              backend function that fetches CMS
+public/index.html                       facility snapshot app
+public/risk-adjustment.html             risk adjustment coding-accuracy tool
+public/data/hcc-crosswalk-sample.json   demo ICD-10 -> HCC crosswalk
+public/data/synthetic-claims.json       synthetic sample patients
+public/samples/                         example PDF and Word doc
+RISK-ADJUSTMENT-README.md               risk adjustment tool docs
+vercel.json                             vercel config
 ```
 
 ## Data
