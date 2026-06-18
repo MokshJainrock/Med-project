@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Risk Adjustment Coding-Accuracy Tool (Synthetic Data)</title>
+<style>
+  :root{
+    --pink:#e6007e; --purple:#6f2da8; --ink:#1d1d1f; --muted:#6b7280;
+    --line:#e3e5ea; --bg:#f5f6f8; --card:#fff;
+    --tp:#1a7f48; --fp:#c0392b; --fn:#b4690e; --na:#9aa0a6;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.5;}
+  .wrap{max-width:1080px;margin:0 auto;padding:22px 18px 80px;}
+  .banner{display:flex;align-items:center;justify-content:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;}
+  .mark{width:38px;height:38px;border-radius:10px;background:conic-gradient(from 220deg,var(--pink),var(--purple),var(--pink));display:flex;align-items:center;justify-content:center;color:#fff;}
+  .mark svg{width:22px;height:22px;}
+  .brand .t1{font-weight:800;font-size:22px;background:linear-gradient(90deg,var(--pink),var(--purple));-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1;}
+  .brand .t2{font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+
+  .synthetic-flag{background:#fff4e5;border:1px solid #f0c98c;color:#8a5a00;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:16px;font-weight:600;text-align:center;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px;}
+  h1{font-size:20px;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:18px;}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin:0 0 12px;}
+  label{display:block;font-size:13px;font-weight:600;margin:10px 0 5px;}
+  select,textarea,input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit;background:#fff;color:var(--ink);}
+  textarea{min-height:54px;resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+  button{font-family:inherit;font-weight:600;font-size:14px;cursor:pointer;border:none;border-radius:9px;padding:11px 18px;background:linear-gradient(90deg,var(--pink),var(--purple));color:#fff;}
+  button.ghost{background:#f0eef6;color:var(--purple);}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media(max-width:720px){.row{grid-template-columns:1fr;}}
+
+  .explain{background:#f7f5fb;border-left:3px solid var(--purple);border-radius:6px;padding:11px 14px;font-size:13px;color:#3d3550;margin:10px 0;}
+  .explain b{color:var(--purple);}
+
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:6px 0 4px;}
+  @media(max-width:560px){.metrics{grid-template-columns:1fr;}}
+  .metric{border:1px solid var(--line);border-radius:11px;padding:14px;text-align:center;}
+  .metric .v{font-size:30px;font-weight:800;}
+  .metric .l{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:2px;}
+  .metric .f{font-size:11px;color:var(--muted);margin-top:6px;}
+
+  .cmatrix{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px;}
+  @media(max-width:560px){.cmatrix{grid-template-columns:repeat(2,1fr);}}
+  .cell{border-radius:11px;padding:14px;text-align:center;color:#fff;}
+  .cell .n{font-size:26px;font-weight:800;}
+  .cell .k{font-size:12px;font-weight:600;opacity:.95;}
+  .cell.tp{background:var(--tp);} .cell.fp{background:var(--fp);} .cell.fn{background:var(--fn);} .cell.na{background:var(--na);}
+
+  table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px;}
+  th,td{padding:8px 10px;border:1px solid var(--line);text-align:left;vertical-align:top;}
+  th{background:#fafbfc;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);}
+  .tag{display:inline-block;padding:1px 7px;border-radius:20px;font-size:11px;font-weight:700;color:#fff;}
+  .tag.tp{background:var(--tp);} .tag.fp{background:var(--fp);} .tag.fn{background:var(--fn);}
+  code{background:#f1eef7;padding:1px 5px;border-radius:4px;font-size:12.5px;}
+  .level-toggle{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:6px;}
+  .level-toggle button{background:#fff;color:var(--ink);border-radius:0;padding:8px 16px;font-weight:600;}
+  .level-toggle button.active{background:var(--purple);color:#fff;}
+  .nav{font-size:13px;margin-bottom:10px;}
+  .nav a{color:var(--purple);text-decoration:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="nav"><a href="/">&larr; Facility Assessment tool</a></div>
+
+  <div class="banner">
+    <span class="mark"><svg viewBox="0 0 24 24" fill="none"><path d="M6.5 7.5C3.9 7.5 2 9.5 2 12s1.9 4.5 4.5 4.5c2.2 0 3.6-1.6 5.5-4.5 1.9 2.9 3.3 4.5 5.5 4.5C20.1 16.5 22 14.5 22 12s-1.9-4.5-4.5-4.5c-2.2 0-3.6 1.6-5.5 4.5C10.1 9.1 8.7 7.5 6.5 7.5Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>
+    <span class="brand"><div class="t1">INFINITE</div><div class="t2">Managed by Medelite</div></span>
+  </div>
+
+  <div class="synthetic-flag">⚠ ALL DATA ON THIS PAGE IS SYNTHETIC — not real patients, no PHI. HCC mappings are a demo sample; verify against the official CMS V28 crosswalk for real use.</div>
+
+  <div class="card">
+    <h1>Risk Adjustment Coding-Accuracy Tool</h1>
+    <div class="sub">Compare a <b>submitted</b> set of ICD-10 codes against a <b>gold/validated</b> set, map both to HCC categories (CMS-HCC V28 sample), and measure coding accuracy with precision, recall, F1, and false-positive / false-negative breakdowns — at both the ICD-10 and HCC levels.</div>
+
+    <div class="explain">
+      <b>Why this matters (the 20-second version):</b> Medicare pays Medicare Advantage plans more for sicker members. Each diagnosis (ICD-10) can map to an <b>HCC</b> category that carries payment weight. A <b>missed</b> valid code (false negative) = lost revenue and an incomplete risk picture. An <b>unsupported</b> submitted code (false positive) = audit/compliance risk and potential overpayment. A real DOJ settlement in 2026 penalized a program that fixed only the missed codes and ignored the unsupported ones — which is exactly why this tool reports <i>both</i> error types.
+    </div>
+
+    <label>Load a synthetic patient</label>
+    <select id="patientSelect" onchange="loadPatient()"></select>
+
+    <div class="row">
+      <div>
+        <label>Submitted / predicted ICD-10 codes <span style="font-weight:400;color:var(--muted)">(comma or space separated)</span></label>
+        <textarea id="submitted" oninput="run()"></textarea>
+      </div>
+      <div>
+        <label>Gold / validated ICD-10 codes <span style="font-weight:400;color:var(--muted)">(the "truth" set)</span></label>
+        <textarea id="gold" oninput="run()"></textarea>
+      </div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+      <button onclick="run()">Calculate</button>
+      <button class="ghost" onclick="loadPatient()">Reset to sample</button>
+    </div>
+  </div>
+
+  <div id="results"></div>
+
+  <div class="card">
+    <h2>What the numbers mean</h2>
+    <div class="explain"><b>Precision = TP / (TP + FP).</b> Of everything you submitted, how much was actually supported. Low precision = over-coding = <b>audit/compliance risk</b>.</div>
+    <div class="explain"><b>Recall = TP / (TP + FN).</b> Of everything you should have captured, how much you got. Low recall = under-coding = <b>lost revenue</b> and an incomplete risk picture.</div>
+    <div class="explain"><b>F1 = 2·P·R / (P + R).</b> The harmonic mean — only high when both precision and recall are high. It can't be gamed by being great at one and terrible at the other (precision 1.0, recall 0.0 → F1 = 0, not 0.5).</div>
+    <div class="explain"><b>Code level vs HCC level.</b> Two different codes can map to the same HCC. <code>E11.22</code> vs <code>E11.21</code> is a code-level FP+FN, but if both map to the same HCC it's a True Positive at the HCC level — and the HCC level is what actually drives the payment. Showing both is the point.</div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   Risk Adjustment coding-accuracy logic.
+   Everything here is explained so it can be defended in an interview.
+   No PHI, no network calls — runs entirely in the browser.
+   ===================================================================== */
+
+let CROSSWALK = {};   // icd10 -> {hcc, hcc_label, desc}
+let PATIENTS = [];
+let currentLevel = "code"; // "code" or "hcc"
+let lastResult = null;
+
+/* ---- Parse a free-text code list into a clean, de-duplicated array ----
+   We uppercase and trim so "e11.22 , E11.22" becomes a single code. */
+function parseCodes(text){
+  return [...new Set(
+    (text || "")
+      .split(/[\s,;]+/)
+      .map(s => s.trim().toUpperCase())
+      .filter(Boolean)
+  )];
+}
+
+/* ---- Map an ICD-10 code to its HCC (or null if it doesn't map) ---- */
+function toHCC(icd10){
+  const m = CROSSWALK[icd10];
+  return (m && m.hcc) ? m.hcc : null;
+}
+
+/* ---- Core comparison at the CODE level ----
+   TP = in both sets. FP = submitted but not gold. FN = gold but not submitted.
+   This is just set arithmetic, which is exactly what precision/recall are. */
+function compareSets(submitted, gold){
+  const G = new Set(gold), S = new Set(submitted);
+  const tp = submitted.filter(c => G.has(c));
+  const fp = submitted.filter(c => !G.has(c));
+  const fn = gold.filter(c => !S.has(c));
+  return { tp, fp, fn };
+}
+
+/* ---- Roll codes up to the HCC level ----
+   We convert each code list to the SET of HCCs it covers (dropping codes that
+   don't map and de-duplicating), then do the same set comparison. This is why
+   a "wrong but same-HCC" code can still be a TP at the HCC level. */
+function toHCCSet(codes){
+  return [...new Set(codes.map(toHCC).filter(Boolean))];
+}
+
+/* ---- Precision / Recall / F1 from TP, FP, FN counts ----
+   Guard against divide-by-zero: if there's nothing to measure, return null
+   so the UI can show "n/a" instead of NaN. */
+function prf(tp, fp, fn){
+  const precision = (tp + fp) === 0 ? null : tp / (tp + fp);
+  const recall    = (tp + fn) === 0 ? null : tp / (tp + fn);
+  const f1 = (precision == null || recall == null || (precision + recall) === 0)
+    ? null
+    : 2 * precision * recall / (precision + recall);
+  return { precision, recall, f1 };
+}
+
+function pct(x){ return x == null ? "n/a" : (x * 100).toFixed(1) + "%"; }
+function f1fmt(x){ return x == null ? "n/a" : x.toFixed(3); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+
+/* ---- Run the whole calculation and render ---- */
+function run(){
+  const submitted = parseCodes(document.getElementById("submitted").value);
+  const gold      = parseCodes(document.getElementById("gold").value);
+
+  // Code-level comparison
+  const code = compareSets(submitted, gold);
+  const codeM = prf(code.tp.length, code.fp.length, code.fn.length);
+
+  // HCC-level comparison
+  const subHCC = toHCCSet(submitted);
+  const goldHCC = toHCCSet(gold);
+  const hcc = compareSets(subHCC, goldHCC);
+  const hccM = prf(hcc.tp.length, hcc.fp.length, hcc.fn.length);
+
+  lastResult = { submitted, gold, code, codeM, subHCC, goldHCC, hcc, hccM };
+  render();
+}
+
+function metricCard(label, value, formula){
+  return `<div class="metric"><div class="v">${value}</div><div class="l">${label}</div><div class="f">${formula}</div></div>`;
+}
+
+function listCodes(codes, kind){
+  if(!codes.length) return `<span style="color:var(--muted)">none</span>`;
+  return codes.map(c=>{
+    const meta = CROSSWALK[c];
+    const label = meta ? ` <span style="color:var(--muted)">(${esc(meta.hcc||"no HCC")})</span>` : "";
+    return `<div style="margin:2px 0"><span class="tag ${kind}">${kind.toUpperCase()}</span> <code>${esc(c)}</code>${label}</div>`;
+  }).join("");
+}
+
+function render(){
+  const r = lastResult;
+  if(!r){ document.getElementById("results").innerHTML=""; return; }
+  const lvl = currentLevel;
+  const C = lvl === "code" ? r.code : r.hcc;
+  const M = lvl === "code" ? r.codeM : r.hccM;
+
+  document.getElementById("results").innerHTML = `
+    <div class="card">
+      <h2>Results</h2>
+      <div class="level-toggle">
+        <button class="${lvl==='code'?'active':''}" onclick="setLevel('code')">ICD-10 code level</button>
+        <button class="${lvl==='hcc'?'active':''}" onclick="setLevel('hcc')">HCC category level</button>
+      </div>
+      <div class="explain">
+        ${lvl==='code'
+          ? "<b>Code level:</b> exact-code accuracy. Did you submit the precise ICD-10 codes? Strictest view."
+          : "<b>HCC level:</b> did you capture the right <i>conditions</i> for payment? Two different codes that map to the same HCC count as a match here. This is the level that drives the RAF score and the money."}
+      </div>
+
+      <div class="metrics">
+        ${metricCard("Precision", pct(M.precision), "TP / (TP+FP)")}
+        ${metricCard("Recall", pct(M.recall), "TP / (TP+FN)")}
+        ${metricCard("F1 score", f1fmt(M.f1), "2·P·R / (P+R)")}
+      </div>
+
+      <h2 style="margin-top:20px">Confusion summary</h2>
+      <div class="cmatrix">
+        <div class="cell tp"><div class="n">${C.tp.length}</div><div class="k">True Positive<br>captured correctly</div></div>
+        <div class="cell fp"><div class="n">${C.fp.length}</div><div class="k">False Positive<br>unsupported / audit risk</div></div>
+        <div class="cell fn"><div class="n">${C.fn.length}</div><div class="k">False Negative<br>missed / lost revenue</div></div>
+        <div class="cell na"><div class="n">—</div><div class="k">True Negative<br>not measured*</div></div>
+      </div>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:8px">*True negatives = every code/HCC correctly not submitted. For list comparison that's effectively "all other codes in existence," so it isn't counted — standard practice for this kind of evaluation.</div>
+
+      <h2 style="margin-top:20px">Breakdown</h2>
+      <table>
+        <tr><th style="width:33%">True Positives (${C.tp.length})</th><th style="width:33%">False Positives (${C.fp.length})</th><th>False Negatives (${C.fn.length})</th></tr>
+        <tr>
+          <td>${listCodes(C.tp,'tp')}</td>
+          <td>${listCodes(C.fp,'fp')}</td>
+          <td>${listCodes(C.fn,'fn')}</td>
+        </tr>
+      </table>
+
+      ${lvl==='code' ? hccInsight(r) : ''}
+    </div>`;
+}
+
+/* Surfaces the code-vs-HCC disagreement explicitly, because it's the most
+   interesting and interview-worthy thing the tool can show. */
+function hccInsight(r){
+  // codes that are wrong at code level but whose HCC is actually captured
+  const goldHCCset = new Set(r.goldHCC);
+  const subHCCset = new Set(r.subHCC);
+  const rescued = r.code.fn.filter(c => { const h=toHCC(c); return h && subHCCset.has(h); });
+  if(!rescued.length) return "";
+  return `<div class="explain" style="margin-top:16px"><b>Code vs HCC insight:</b> ${rescued.length} code(s) counted as a miss at the code level are actually captured at the HCC level (a different submitted code maps to the same HCC). Switch to the HCC view to see how the payment-level picture differs from the strict code-match picture.</div>`;
+}
+
+function setLevel(l){ currentLevel = l; render(); }
+
+function loadPatient(){
+  const sel = document.getElementById("patientSelect");
+  const p = PATIENTS[sel.value];
+  if(!p) return;
+  document.getElementById("submitted").value = p.submitted.join(", ");
+  document.getElementById("gold").value = p.gold.join(", ");
+  run();
+}
+
+/* ---- Load the crosswalk + synthetic patients, then show the first one ---- */
+async function init(){
+  try{
+    const [cw, pts] = await Promise.all([
+      fetch("data/hcc-crosswalk-sample.json").then(r=>r.json()),
+      fetch("data/synthetic-claims.json").then(r=>r.json())
+    ]);
+    (cw.mappings||[]).forEach(m => { CROSSWALK[m.icd10.toUpperCase()] = m; });
+    PATIENTS = pts.patients || [];
+    const sel = document.getElementById("patientSelect");
+    sel.innerHTML = PATIENTS.map((p,i)=>`<option value="${i}">${esc(p.patient_id)} — ${esc(p.label)}</option>`).join("");
+    loadPatient();
+  }catch(e){
+    document.getElementById("results").innerHTML =
+      `<div class="card" style="color:var(--fp)">Could not load the sample data files. If you opened this file directly, run it through a local server (the page fetches JSON, which browsers block on file://). On the deployed site it works normally.</div>`;
+  }
+}
+init();
+</script>
+</body>
+</html>

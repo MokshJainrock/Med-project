@@ -1,0 +1,25 @@
+{
+  "_README": "SAMPLE / DEMO crosswalk slice. This is NOT the full official mapping. For real use, replace `mappings` with the official CMS PY2026 CMS-HCC V28 ICD-10-to-HCC crosswalk downloaded from https://www.cms.gov/medicare/payment/medicare-advantage-rates-statistics/risk-adjustment/2026-model-software-icd-10-mappings . HCC category numbers in this sample are illustrative for the demo and MUST be verified against the official CMS file before any real interpretation. The tool reads whatever is in `mappings`, so swapping in the official file changes nothing in the code.",
+  "model": "CMS-HCC V28 (Payment Year 2026)",
+  "source": "Replace with official CMS PY2026 V28 ICD-10 mapping file. Sample numbers are illustrative only.",
+  "is_sample": true,
+  "mappings": [
+    { "icd10": "E11.9",   "desc": "Type 2 diabetes mellitus without complications", "hcc": null,  "hcc_label": "Not HCC-mapped (no RAF weight)" },
+    { "icd10": "E11.21",  "desc": "Type 2 diabetes with diabetic nephropathy",       "hcc": "HCC37", "hcc_label": "Diabetes with Chronic Complications" },
+    { "icd10": "E11.22",  "desc": "Type 2 diabetes with diabetic CKD",                "hcc": "HCC37", "hcc_label": "Diabetes with Chronic Complications" },
+    { "icd10": "E11.42",  "desc": "Type 2 diabetes with diabetic polyneuropathy",     "hcc": "HCC37", "hcc_label": "Diabetes with Chronic Complications" },
+    { "icd10": "E11.65",  "desc": "Type 2 diabetes with hyperglycemia",               "hcc": "HCC38", "hcc_label": "Diabetes with Glycemic/Unspecified" },
+    { "icd10": "I50.9",   "desc": "Heart failure, unspecified",                       "hcc": "HCC226", "hcc_label": "Heart Failure, Chronic/Unspecified" },
+    { "icd10": "I50.22",  "desc": "Chronic systolic (congestive) heart failure",      "hcc": "HCC226", "hcc_label": "Heart Failure, Chronic/Unspecified" },
+    { "icd10": "I50.32",  "desc": "Chronic diastolic (congestive) heart failure",     "hcc": "HCC226", "hcc_label": "Heart Failure, Chronic/Unspecified" },
+    { "icd10": "J44.9",   "desc": "Chronic obstructive pulmonary disease, unspecified","hcc": "HCC280", "hcc_label": "COPD" },
+    { "icd10": "J44.1",   "desc": "COPD with acute exacerbation",                     "hcc": "HCC280", "hcc_label": "COPD" },
+    { "icd10": "N18.4",   "desc": "Chronic kidney disease, stage 4",                  "hcc": "HCC326", "hcc_label": "CKD Stage 4" },
+    { "icd10": "N18.5",   "desc": "Chronic kidney disease, stage 5",                  "hcc": "HCC327", "hcc_label": "CKD Stage 5" },
+    { "icd10": "N18.30",  "desc": "Chronic kidney disease, stage 3 unspecified",      "hcc": null,   "hcc_label": "Not HCC-mapped at unspecified stage 3 (verify in V28)" },
+    { "icd10": "N18.9",   "desc": "Chronic kidney disease, unspecified",              "hcc": null,   "hcc_label": "Not HCC-mapped (no RAF weight)" },
+    { "icd10": "F33.1",   "desc": "Major depressive disorder, recurrent, moderate",   "hcc": "HCC155", "hcc_label": "Depression" },
+    { "icd10": "F32.0",   "desc": "Major depressive disorder, single episode, mild",  "hcc": null,   "hcc_label": "Not HCC-mapped in V28 (mild depression removed)" },
+    { "icd10": "Z85.3",   "desc": "Personal history of malignant neoplasm of breast", "hcc": null,   "hcc_label": "History-of code; does not map (no RAF weight)" }
+  ]
+}
